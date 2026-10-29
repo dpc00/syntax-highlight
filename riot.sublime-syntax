@@ -73,7 +73,6 @@ variables:
   # Riot custom properties
   unquoted_attribute_value: (?:[^\s<>/''"]|/(?!>))+
   expression_start: ((?<!\\){)
-  expression_close_lookahead: (?=(s*)})
 
   # Directives
   directive_attributes: (?i)\b(each|is|if|show|hide)\b
@@ -634,14 +633,20 @@ contexts:
   # Riot stuff
   expression:
     - match: '{{expression_start}}'
-      escape: '{{ expression_start }}'
-      push:
-        - match: '{{expression_close_lookahead}}'
-          pop: true
-        - match: (?=\S)
-          embed: scope:source.js
-          embed_scope: source.js.embedded.riot
-          escape: '{{expression_close_lookahead}}'
+      push: expression-body
+
+  # The JavaScript is embedded only up to the next brace. Braces are counted
+  # here, so a `}` that closes an object literal or a function body inside the
+  # expression does not end the expression.
+  expression-body:
+    - match: '\}'
+      pop: true
+    - match: '\{'
+      push: expression-body
+    - match: (?=\S)
+      embed: scope:source.js
+      embed_scope: source.js.embedded.riot
+      escape: (?=[{}])
 
   tag-directive:
     - match: '{{directive_attributes}}'
